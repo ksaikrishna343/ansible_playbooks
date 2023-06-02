@@ -1,0 +1,25 @@
+<rhel host fqdn> ansible_host=<ip-address>  ##RHEL 8
+<ubuntu host fqdn>  ansible_host=<ip-address>  ##Ubuntu 20.04
+
+[rhel]
+<rhel host fqdn>
+
+[ubuntu]
+<ubuntu host fqdn>
+
+[srvgrp]
+<rhel host fqdn>
+<ubuntu host fqdn>
+
+[dc_group:children]
+srvgrp
+
+## we can give variables either of below 2 groups as srvgrp is children for dc_group. But priority will be for srvgrp:vars ##
+[dc_group:vars]
+ansible_python_interpreter=/usr/bin/python3
+#ansible_user=ansible
+#ansible_ssh_private_key_file=vprofile-key.pem
+
+[srvgrp:vars]
+ansible_user=ansible
+#ansible_become_pass=GdjjffDDfyeewkjj
