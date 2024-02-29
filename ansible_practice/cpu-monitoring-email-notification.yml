@@ -1,0 +1,76 @@
+---
+- name: Linux CPU Usage Monitoring
+  hosts: all
+  vars:
+    gmail_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          37386162646531383637663131383261373433666638316438326435623330653837646233366162
+          4829204357291030405010455554614123334988987623662370a653166303237326363373736306
+          666362396439313337646130366139353939333431653716438326435623330653837646233366162
+          3239383333396631650a6563386363393437383762363438316235303932626462393931333764613
+          333764613036613343837316161356532376236343831623530393262646239623939
+
+  tasks:
+
+    - name: 'Preparing CPU utilization for 1st sec'
+      shell: |
+        mpstat -u 1 1|tail -1| awk '{print $NF}'
+      register: cpu1sec
+
+    - name: 'preparing CPU utilization 2nd sec'
+      shell: |
+          mpstat -u 1 2|tail -1| awk '{print $NF}'
+      register: cpu2sec
+
+    - name: 'preparing CPU utilization for 3rd sec'
+      shell: |
+          mpstat -u 1 3|tail -1| awk '{print $NF}'
+      register: cpu3sec
+
+    - name: 'Execute topcpu.sh script to {{ inventory_hostname }}'
+      shell: |
+        sh /home/ansibleuser/automation/mail/topcpu.sh
+
+    - name: 'Print message if CPU utilization become normal'
+      debug:
+        msg:
+          - -------------------------------------------------------
+          - CPU Utilization = ( 100 - idle time ) = {{ cpu1sec.stdout }}% is idle
+          - -------------------------------------------------------
+      when: cpu1sec.stdout|int > 10 and cpu2sec.stdout|int > 10 and cpu3sec.stdout|int > 10
+
+    - name: 'Print message if CPU utilization become abnormal'
+      debug:
+        msg:
+           - -------------------------------------------------------
+           - CPU Utilization = ( 100 - idle time ) = "{{ item.stdout  }}"% is idle
+           - -------------------------------------------------------
+      with_items:
+        - "{{ cpu1sec }}"
+        - "{{ cpu2sec }}"
+        - "{{ cpu3sec }}"
+      when: item.stdout| int <= 10
+      loop_control:
+        label: "{{ item.stdout }}"
+
+
+    - name: 'CPU utilization Monitoring via Ansible E-mail notification'
+      mail:
+        host: smtp.gmail.com
+        subtype: html
+        port: 587
+        password: "{{ gmail_password }}"
+        to: your-email-address@gmail.com
+        from: your-email-address@gmail.com
+        username: your-email-address@gmail.com
+        subject: Server {{ inventory_hostname }} having high CPU utilization and idle% is "{{ item.stdout }}"%
+        attach: /tmp/{{ ansible_hostname }}_inventory_CPU.txt
+        body: <pre> {{ lookup('file', '/tmp/{{ ansible_hostname }}_inventory_CPU.txt') }} </pre>
+      delegate_to: localhost
+      with_items:
+        - "{{ cpu1sec }}"
+        - "{{ cpu2sec }}"
+        - "{{ cpu3sec }}"
+      when: item.stdout| int <= 10
+      loop_control:
+        label: "{{ item.stdout }}"
