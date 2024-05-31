@@ -33,9 +33,9 @@
       when: reboot_required.stdout == "reboot_not_needed"
 
     - name: Task 3 - Reboot RedHat/CentOS and Ubuntu/Debian servers after kernel update
-      ansible.builtin.command: shutdown -r +1  "Rebooting the server after kernel update"
-      async: 0
-      poll: 0
+      ansible.builtin.reboot:
+        pre_reboot_delay: 10
+        msg: "Rebooting the server in 10 seconds after kernel update"
       when: reboot_required.stdout == "reboot_needed"
       register: reboot_status
       ignore_errors: true
@@ -43,13 +43,12 @@
       ansible.builtin.debug:
         msg: "Server {{ inventory_hostname }} reboot is in progress"
       when: reboot_status.changed == true
-
-    - name: Task 4 - Pause for 120 secs as server reboot is in progress
+    - name: Task 3.2 - Pause playbook for 120 secs as server reboot is in progress
       ansible.builtin.pause:
-        minutes: 2
+        seconds: 120
       when: reboot_status.changed == true
 
-    - name: Task 5 - Check the server connectivity status
+    - name: Task 4 - Check the server connectivity status
       ansible.builtin.wait_for:
         host: '{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}'
         port: 22
@@ -60,7 +59,7 @@
       vars:
         ansible_connection: local
       register: server_status
-    - name: Task 5.1 - Check the server connectivity status
+    - name: Task 4.1 - Check the server connectivity status
       ansible.builtin.debug:
         msg: "Server {{ inventory_hostname }} is up and accessible"
       when: server_status.state == "started"
