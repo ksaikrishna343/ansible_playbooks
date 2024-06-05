@@ -5,7 +5,10 @@
   hosts: all
   become: yes
   serial: 5
-
+  vars:
+    email_recipient: "admin@example.com"
+    email_sender: "ansible@example.com"
+    smtp_server: "smtp.example.com"
   tasks:
     - name:  Task 1 - Performing patching on RHEL/CentOS and Ubuntu/Debian server
       ansible.builtin.package:
@@ -63,3 +66,36 @@
       ansible.builtin.debug:
         msg: "Server {{ inventory_hostname }} is up and accessible"
       when: server_status.state == "started"
+
+    - name: Task 5 - Collect patch status
+      block:
+        - name: Get hostname
+          ansible.builtin.command: hostname
+          register: hostname
+
+        - name: Save patch status
+          ansible.builtin.lineinfile:
+            path: "/tmp/patch_status.log"
+            line: "{{ hostname.stdout }}: {{ package_update_status | json_query('results[*].changed') | sum > 0 | ternary('Patched', 'Already Up-to-Date') }}"
+
+      delegate_to: localhost
+
+- name: Task 6 - Send Email with Patch Status
+  hosts: localhost
+  tasks:
+    - name: Read patch status
+      ansible.builtin.slurp:
+        src: /tmp/patch_status.log
+      register: status_file
+
+    - name: Send status email
+      community.general.mail:
+        host: "{{ smtp_server }}"
+        port: 587
+        sender: "{{ email_sender }}"
+        to: "{{ email_recipient }}"
+        subject: "Patch Status Report"
+        body: "{{ status_file.content | b64decode }}"
+        secure: starttls
+        username: "your_smtp_username"
+        password: "your_smtp_password"
