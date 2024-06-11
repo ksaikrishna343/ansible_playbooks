@@ -77,7 +77,6 @@
           ansible.builtin.lineinfile:
             path: "/tmp/patch_status.log"
             line: "{{ hostname.stdout }}: {{ package_update_status | json_query('results[*].changed') | sum > 0 | ternary('Patched', 'Already Up-to-Date') }}"
-
       delegate_to: localhost
 
 - name: Task 6 - Send Email with Patch Status
