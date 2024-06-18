@@ -36,6 +36,7 @@
       ansible.builtin.reboot:
         pre_reboot_delay: 10
         msg: "Rebooting the server in 10 seconds after kernel update"
+        reboot_timeout: 300
       when: reboot_required.stdout == "reboot_needed"
       register: reboot_status
       ignore_errors: true
